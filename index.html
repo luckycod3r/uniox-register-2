@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Регистрация</title>
+  <script src="https://telegram.org/js/telegram-web-app.js?59"></script>
+  <style>
+    :root { --bg:#0f0f12; --card:#17181d; --txt:#eaeaea; --muted:#a7a7ad; --accent:#ff1a6a; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Arial; background: var(--bg); color: var(--txt); }
+    .wrap { max-width: 720px; margin: 40px auto; padding: 0 16px; }
+    .card { background: var(--card); border: 1px solid #242630; border-radius: 14px; padding: 22px; box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+    h1 { margin: 0 0 14px; font-size: 22px; }
+    p.help { color: var(--muted); margin-top: 0; }
+    label { display:block; font-weight:600; margin:16px 0 8px; }
+    input[type="text"], input[type="tel"], input[type="number"], select {
+      width:100%; padding:12px 14px; border-radius:10px; border:1px solid #2b2d36; background:#14151a; color:var(--txt);
+    }
+    .row { display:flex; gap:12px; flex-wrap:wrap; }
+    .row > div { flex:1 1 260px; }
+    button { appearance:none; border:none; border-radius:12px; padding:12px 16px; cursor:pointer; font-weight:700; }
+    .btn { background: var(--accent); color:white; }
+    .error { color:#ff6b6b; margin-top:8px; }
+    .success { color:#6bff9d; margin-top:8px; }
+
+    /* ===== LOADER OVERLAY ===== */
+    .overlay {
+      position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+      background: rgba(10,10,12,0.6); backdrop-filter: blur(2px); z-index: 9999;
+    }
+    .overlay.show { display: flex; }
+    .spinner {
+      width: 72px; height: 72px; border-radius: 50%;
+      border: 6px solid rgba(255,255,255,0.15);
+      border-top-color: var(--accent);
+      animation: spin 0.9s linear infinite;
+      box-shadow: 0 0 24px rgba(255,26,106,0.35);
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .overlay-text { margin-top: 16px; color: #eaeaea; font-weight: 600; text-align:center; }
+    .loader-box { display:flex; flex-direction:column; align-items:center; }
+    .disabled { opacity: .6; pointer-events: none; }
+  </style>
+</head>
+<body>
+  <!-- FULLSCREEN LOADER -->
+  <div id="overlay" class="overlay" aria-hidden="true">
+    <div class="loader-box">
+      <div class="spinner" role="status" aria-label="Загрузка"></div>
+      <div class="overlay-text">Отправляем заявку…</div>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="card" id="card">
+      <h1>Регистрация</h1>
+      <p class="help">Заполните форму. Поля с * обязательны.</p>
+
+      <form id="regForm" novalidate>
+        <label for="fullName">ФИО *</label>
+        <input id="fullName" name="fullName" type="text" placeholder="Иванов Иван Иванович" required />
+
+        <div class="row">
+          <div>
+            <label for="phone">Номер телефона *</label>
+            <input id="phone" name="phone" type="tel" placeholder="+7 900 900 90 90" required pattern="^[+0-9 ()-]{7,}$" />
+          </div>
+          <div>
+            <label for="age">Сколько полных лет *</label>
+            <input id="age" name="age" type="number" min="1" max="120" inputmode="numeric" placeholder="18" required />
+          </div>
+        </div>
+
+        <label for="course">Направление *</label>
+        <select id="course" name="course" required>
+          <option value="">— выберите —</option>
+          <option value="hip-hop 16:00-17:30">hip-hop 16:00-17:30</option>
+          <option value="juzz-funk 18:00-19:30">juzz-funk 18:00-19:30</option>
+        </select>
+        <div id="msg" class=""></div>
+
+        <div style="margin-top:18px">
+          <button type="submit" class="btn" id="submitBtn">Отправить</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // Данные Telegram WebApp (безопасно, если открыто вне Telegram)
+    const tgUser = window.Telegram?.WebApp?.initDataUnsafe?.user || null;
+    const telegramUsernameAuto = tgUser?.username || '';
+    const telegramId = tgUser?.id || '';
+
+    // Замените при необходимости на ваш серверный эндпоинт
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbysahcuPe22bdI6-bM8m11Dexsj_l_ZHOf73-c6CLgZspKc8wVgGDe34qR3-BUmt4AgSQ/exec';
+
+    const form = document.getElementById('regForm');
+    const msg = document.getElementById('msg');
+    const overlay = document.getElementById('overlay');
+    const card = document.getElementById('card');
+    const submitBtn = document.getElementById('submitBtn');
+
+    function setLoading(on) {
+      overlay.classList.toggle('show', on);
+      card.classList.toggle('disabled', on);
+      Array.from(form.elements).forEach(el => el.disabled = on);
+      if (!on) { submitBtn.disabled = false; }
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      msg.className = ''; msg.textContent = '';
+
+      if (!form.reportValidity()) return;
+
+      // Собираем значения
+      const phone = document.getElementById('phone').value.trim();
+      const ageStr = document.getElementById('age').value.trim();
+      const age = Number(ageStr);
+      const course = document.getElementById('course').value;
+      const telegram_username = telegramUsernameAuto
+
+      if (!Number.isFinite(age) || age < 1) {
+        msg.className = 'error';
+        msg.textContent = 'Возраст должен быть положительным числом.';
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const fd = new FormData();
+        // Только поля, которые принимает сервер
+        fd.append('phone', phone);
+        fd.append('course', course);
+        fd.append('age', String(age));
+        fd.append('telegram_username', telegram_username);
+        fd.append('telegram_id', telegramId ? String(telegramId) : '');
+
+        const res = await fetch(SCRIPT_URL, { method: 'POST', body: fd });
+        const okJson = (res.headers.get('content-type') || '').includes('application/json');
+        const data = okJson ? await res.json() : { ok: res.ok };
+
+        if (res.ok && data.ok !== false) {
+          msg.className = 'success';
+          msg.textContent = 'Заявка отправлена! Спасибо 🙌';
+          form.reset();
+          
+        } else {
+          throw new Error(data.error || `Ошибка отправки (HTTP ${res.status})`);
+        }
+      } catch (err) {
+        msg.className = 'error';
+        msg.textContent = `Не удалось отправить: ${err.message}`;
+      } finally {
+        setLoading(false);
+      }
+    });
+  </script>
+</body>
+</html>
